@@ -1,0 +1,23 @@
+{
+  "name": "@setwise/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc --project tsconfig.build.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@setwise/domain": "workspace:*",
+    "@setwise/training-core": "workspace:*",
+    "@setwise/validation": "workspace:*",
+    "fastify": "^5"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5"
+  }
+}

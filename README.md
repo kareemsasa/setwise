@@ -6,7 +6,7 @@ Setwise turns a user's profile, constraints, goals, schedule, and actual workout
 
 ## Status
 
-**Phase: Foundation** -- documentation and domain modeling only. No application code yet.
+**Phase: Scaffold** -- monorepo structure with domain types, placeholder routes, and initial progression rules. No business logic or persistence yet.
 
 ## Core Workflow
 
@@ -29,16 +29,41 @@ Setwise turns a user's profile, constraints, goals, schedule, and actual workout
 
 ```
 setwise/
+  apps/
+    web/                     # Next.js App Router (port 3000)
+    api/                     # Fastify API server (port 4000)
+  packages/
+    domain/                  # Pure TypeScript types and enums
+    training-core/           # Deterministic progression rules
+    db/                      # Drizzle ORM schema and config
+    validation/              # Zod schemas for API input
   docs/
-    product-brief.md        # product thesis, target user, MVP scope
-    domain-model.md         # entities, relationships, lifecycle states
-    intake-flow.md          # consultation process and structured output
-    plan-lifecycle.md       # plan states, versioning, workout generation
-    progression-rules-v0.md # deterministic progression and deload rules
-    architecture-notes.md   # technical architecture and module boundaries
-  README.md
+    product-brief.md         # product thesis, target user, MVP scope
+    domain-model.md          # entities, relationships, lifecycle states
+    intake-flow.md           # consultation process and structured output
+    plan-lifecycle.md        # plan states, versioning, workout generation
+    progression-rules-v0.md  # deterministic progression and deload rules
+    architecture-notes.md    # technical architecture and module boundaries
 ```
+
+## Tech Stack
+
+- TypeScript end-to-end
+- pnpm workspaces + Turborepo
+- Next.js 15 (App Router) for the web app
+- Fastify 5 for the API
+- PostgreSQL + Drizzle ORM
+- Zod for validation
+- Vitest for tests
 
 ## Local Development
 
-No application code exists yet. Next step is selecting a tech stack and scaffolding the initial project structure. See `docs/architecture-notes.md` for the recommended direction.
+```sh
+pnpm install          # install dependencies
+pnpm dev              # start web + api in dev mode
+pnpm build            # build all packages
+pnpm test             # run tests
+pnpm typecheck        # type-check all packages
+```
+
+Requires Node.js 20+ and pnpm 10+. Postgres is needed once persistence is wired up (not yet required).
