@@ -17,6 +17,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@setwise/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@setwise/domain':
         specifier: workspace:*
         version: link:../../packages/domain
