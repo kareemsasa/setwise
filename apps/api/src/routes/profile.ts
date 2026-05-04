@@ -32,10 +32,11 @@ export const profileRoutes: FastifyPluginAsync = async (app) => {
 
       return reply.status(201).send(profile);
     } catch (error: unknown) {
-      if (
-        error instanceof Error &&
-        error.message.includes("unique constraint")
-      ) {
+      const cause =
+        error instanceof Error && "cause" in error
+          ? (error as Error & { cause: { code?: string } }).cause
+          : undefined;
+      if (cause?.code === "23505") {
         return reply.status(409).send({
           error: "A profile with this email already exists",
         });
