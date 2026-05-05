@@ -6,3 +6,6 @@ export type {
 
 export { computeSessionSummary } from "./session-summary.js";
 export type { SessionSummaryInput } from "./session-summary.js";
+
+export { detectProgressionPatterns } from "./pattern-detection.js";
+export type { SessionExerciseRecord } from "./pattern-detection.js";
