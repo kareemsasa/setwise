@@ -6,7 +6,7 @@ Setwise turns a user's profile, constraints, goals, schedule, and actual workout
 
 ## Status
 
-**Phase: Assessment Handoff** -- profile creation, consultation intake, and assessment handoff are wired up. Assessment is a status record only; plan generation is not yet implemented. No real AI calls yet.
+**Phase: Draft Plan Lifecycle** -- profile creation, consultation intake, assessment handoff, and draft plan lifecycle are wired up. Plan generation is deterministic/mock. Approved plans do not yet generate scheduled workouts. No real AI calls yet.
 
 ## Core Workflow
 
@@ -321,6 +321,120 @@ Fetch a single assessment by ID.
 
 - `400` — Invalid assessment ID (not a UUID)
 - `404` — Assessment not found
+
+### POST /api/assessments/:assessmentId/plans
+
+Create a draft training plan from an assessment. Uses deterministic mock generation (no AI).
+
+**Response (201):**
+
+```json
+{
+  "id": "uuid",
+  "userId": "uuid",
+  "assessmentId": "uuid",
+  "name": "strength plan",
+  "status": "draft",
+  "createdAt": "2026-05-04T...",
+  "currentVersion": {
+    "id": "uuid",
+    "versionNumber": 1,
+    "status": "draft",
+    "structure": {
+      "goalSummary": "...",
+      "weeklySchedule": { "..." : "..." },
+      "safetyNotes": [],
+      "progressionRules": "...",
+      "generatedAt": "...",
+      "generationMethod": "deterministic-mock"
+    },
+    "rejectionFeedback": null,
+    "createdAt": "2026-05-04T..."
+  }
+}
+```
+
+**Error responses:**
+
+- `400` — Invalid assessment ID
+- `404` — Assessment not found
+- `409` — Assessment is processing, or a draft plan already exists for this assessment
+- `422` — Assessment has failed
+
+**Assessment status gating:** Plans can be created from `pending` or `completed` assessments. `processing` returns 409; `failed` returns 422.
+
+**Duplicate handling:** Only one draft plan per assessment. If a draft already exists, returns 409 with the existing plan. After rejection, a new plan can be created.
+
+### GET /api/assessments/:assessmentId/plans
+
+List all plans for an assessment, each with its latest version.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "uuid",
+    "userId": "uuid",
+    "assessmentId": "uuid",
+    "name": "strength plan",
+    "status": "draft",
+    "createdAt": "2026-05-04T...",
+    "currentVersion": { "..." : "..." }
+  }
+]
+```
+
+**Error responses:**
+
+- `404` — Assessment not found
+
+### GET /api/plans/:planId
+
+Fetch a single plan with its latest version.
+
+**Response (200):** Same shape as individual items in the list endpoint above.
+
+**Error responses:**
+
+- `400` — Invalid plan ID
+- `404` — Plan not found
+
+### POST /api/plans/:planId/approve
+
+Approve a draft plan. Sets both the plan status and latest version status to `approved`.
+
+**Response (200):** Returns the updated plan with its approved version.
+
+**Error responses:**
+
+- `400` — Invalid plan ID
+- `404` — Plan not found
+- `409` — Plan is not in draft status (already approved, rejected, or no version)
+
+**Note:** Approved plans do not yet generate scheduled workouts.
+
+### POST /api/plans/:planId/reject
+
+Reject a draft plan with feedback. The latest version is marked `rejected` with the feedback stored. The plan itself remains in `draft` status (awaiting a future revision).
+
+**Request body:**
+
+```json
+{
+  "feedback": "Too much volume for a beginner"
+}
+```
+
+**Response (200):** Returns the updated plan with its rejected version.
+
+**Error responses:**
+
+- `400` — Invalid plan ID or missing/empty feedback
+- `404` — Plan not found
+- `409` — Plan is not in draft status (already approved, rejected, or no version)
+
+**Note:** This slice does not auto-generate a revised version. A future revision endpoint will handle that.
 
 ## Running Tests
 

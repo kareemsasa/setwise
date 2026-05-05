@@ -12,6 +12,35 @@ const containerStyle = {
   fontFamily: "system-ui",
 } as const;
 
+interface PlanVersion {
+  id: string;
+  versionNumber: number;
+  status: string;
+  structure: {
+    goalSummary: string;
+    weeklySchedule: {
+      daysPerWeek: number;
+      sessionLengthMinutes: number;
+      sessions: Array<{
+        dayOfWeek: string;
+        sessionType: string;
+        focus: string;
+      }>;
+    };
+    safetyNotes: string[];
+    progressionRules: string;
+    generationMethod: string;
+  };
+  rejectionFeedback: string | null;
+}
+
+interface Plan {
+  id: string;
+  name: string;
+  status: string;
+  currentVersion: PlanVersion;
+}
+
 export default function IntakePage() {
   const [phase, setPhase] = useState<"profile" | "consultation" | "done">(
     "profile",
@@ -25,6 +54,17 @@ export default function IntakePage() {
   const [assessmentStatus, setAssessmentStatus] = useState<
     "idle" | "submitting" | "created" | "conflict" | "error"
   >("idle");
+  const [assessmentId, setAssessmentId] = useState("");
+
+  // Plan state
+  const [planStatus, setPlanStatus] = useState<
+    "idle" | "creating" | "created" | "conflict" | "error"
+  >("idle");
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [reviewStatus, setReviewStatus] = useState<
+    "idle" | "submitting" | "done" | "error"
+  >("idle");
+  const [rejectFeedback, setRejectFeedback] = useState("");
 
   async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -156,6 +196,8 @@ export default function IntakePage() {
       );
 
       if (res.status === 201) {
+        const body = await res.json();
+        setAssessmentId(body.id);
         setAssessmentStatus("created");
         return;
       }
@@ -174,26 +216,107 @@ export default function IntakePage() {
     }
   }
 
+  async function handleCreatePlan() {
+    setPlanStatus("creating");
+    setError("");
+
+    try {
+      const res = await fetch(
+        `${API}/api/assessments/${assessmentId}/plans`,
+        { method: "POST" },
+      );
+
+      if (res.status === 201) {
+        const body = await res.json();
+        setPlan(body);
+        setPlanStatus("created");
+        return;
+      }
+
+      if (res.status === 409) {
+        const body = await res.json();
+        if (body.plan) setPlan(body.plan);
+        setPlanStatus("conflict");
+        return;
+      }
+
+      const body = await res.json();
+      setError(body.error || "Request failed");
+      setPlanStatus("error");
+    } catch {
+      setError("Could not reach the API. Is it running on port 4000?");
+      setPlanStatus("error");
+    }
+  }
+
+  async function handleApprove() {
+    if (!plan) return;
+    setReviewStatus("submitting");
+    setError("");
+
+    try {
+      const res = await fetch(`${API}/api/plans/${plan.id}/approve`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        const body = await res.json();
+        setPlan(body);
+        setReviewStatus("done");
+        return;
+      }
+
+      const body = await res.json();
+      setError(body.error || "Request failed");
+      setReviewStatus("error");
+    } catch {
+      setError("Could not reach the API. Is it running on port 4000?");
+      setReviewStatus("error");
+    }
+  }
+
+  async function handleReject() {
+    if (!plan || !rejectFeedback.trim()) return;
+    setReviewStatus("submitting");
+    setError("");
+
+    try {
+      const res = await fetch(`${API}/api/plans/${plan.id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedback: rejectFeedback }),
+      });
+
+      if (res.ok) {
+        const body = await res.json();
+        setPlan(body);
+        setReviewStatus("done");
+        return;
+      }
+
+      const body = await res.json();
+      setError(body.error || "Request failed");
+      setReviewStatus("error");
+    } catch {
+      setError("Could not reach the API. Is it running on port 4000?");
+      setReviewStatus("error");
+    }
+  }
+
   if (phase === "done") {
     return (
       <main style={containerStyle}>
         <h1>Intake Complete</h1>
         <p>Your profile and consultation data have been saved.</p>
 
+        {/* Assessment submission */}
         {assessmentStatus === "idle" && (
           <button onClick={handleAssessmentSubmit} disabled={!consultationId}>
             Submit for Assessment
           </button>
         )}
 
-        {assessmentStatus === "submitting" && <p>Submitting...</p>}
-
-        {assessmentStatus === "created" && (
-          <p>
-            Assessment created with status: <strong>pending</strong>. Plan
-            generation is not yet implemented.
-          </p>
-        )}
+        {assessmentStatus === "submitting" && <p>Submitting assessment...</p>}
 
         {assessmentStatus === "conflict" && (
           <p>An assessment is already in progress for this consultation.</p>
@@ -201,6 +324,139 @@ export default function IntakePage() {
 
         {assessmentStatus === "error" && (
           <p style={{ color: "red" }}>{error}</p>
+        )}
+
+        {/* Plan creation */}
+        {assessmentStatus === "created" && !plan && planStatus === "idle" && (
+          <div style={{ marginTop: "1rem" }}>
+            <p>
+              Assessment created (status: <strong>pending</strong>).
+            </p>
+            <button onClick={handleCreatePlan}>Create Draft Plan</button>
+          </div>
+        )}
+
+        {planStatus === "creating" && <p>Generating draft plan...</p>}
+
+        {planStatus === "conflict" && !plan && (
+          <p>A draft plan already exists for this assessment.</p>
+        )}
+
+        {planStatus === "error" && <p style={{ color: "red" }}>{error}</p>}
+
+        {/* Plan display */}
+        {plan && (
+          <div style={{ marginTop: "1rem" }}>
+            <h2>{plan.name}</h2>
+            <p>
+              Plan status: <strong>{plan.status}</strong> | Version{" "}
+              {plan.currentVersion.versionNumber} (
+              {plan.currentVersion.status})
+            </p>
+
+            <div
+              style={{
+                background: "#f5f5f5",
+                padding: "1rem",
+                borderRadius: 4,
+                marginTop: "0.5rem",
+              }}
+            >
+              <p>
+                <strong>Goal:</strong>{" "}
+                {plan.currentVersion.structure.goalSummary}
+              </p>
+              <p>
+                <strong>Schedule:</strong>{" "}
+                {plan.currentVersion.structure.weeklySchedule.daysPerWeek}{" "}
+                days/week,{" "}
+                {
+                  plan.currentVersion.structure.weeklySchedule
+                    .sessionLengthMinutes
+                }{" "}
+                min sessions
+              </p>
+              <ul>
+                {plan.currentVersion.structure.weeklySchedule.sessions.map(
+                  (s, i) => (
+                    <li key={i}>
+                      <strong>{s.dayOfWeek}:</strong> {s.sessionType} —{" "}
+                      {s.focus}
+                    </li>
+                  ),
+                )}
+              </ul>
+              {plan.currentVersion.structure.safetyNotes.length > 0 && (
+                <>
+                  <p>
+                    <strong>Safety notes:</strong>
+                  </p>
+                  <ul>
+                    {plan.currentVersion.structure.safetyNotes.map((n, i) => (
+                      <li key={i}>{n}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              <p>
+                <em>{plan.currentVersion.structure.progressionRules}</em>
+              </p>
+              <p style={{ fontSize: "0.8em", color: "#888" }}>
+                Generation: {plan.currentVersion.structure.generationMethod}
+              </p>
+            </div>
+
+            {plan.currentVersion.rejectionFeedback && (
+              <p style={{ marginTop: "0.5rem", color: "#c00" }}>
+                Rejection feedback: {plan.currentVersion.rejectionFeedback}
+              </p>
+            )}
+
+            {/* Approve/reject controls */}
+            {plan.currentVersion.status === "draft" &&
+              reviewStatus !== "done" && (
+                <div style={{ marginTop: "1rem" }}>
+                  <button
+                    onClick={handleApprove}
+                    disabled={reviewStatus === "submitting"}
+                    style={{ marginRight: "0.5rem" }}
+                  >
+                    Approve Plan
+                  </button>
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <textarea
+                      placeholder="Rejection feedback (required)"
+                      value={rejectFeedback}
+                      onChange={(e) => setRejectFeedback(e.target.value)}
+                      rows={2}
+                      style={style}
+                    />
+                    <button
+                      onClick={handleReject}
+                      disabled={
+                        reviewStatus === "submitting" ||
+                        !rejectFeedback.trim()
+                      }
+                    >
+                      Reject Plan
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            {reviewStatus === "done" && (
+              <p style={{ marginTop: "0.5rem", color: "green" }}>
+                Plan review submitted. Status:{" "}
+                <strong>{plan.currentVersion.status}</strong>.
+                {plan.currentVersion.status === "approved" &&
+                  " Scheduled workout generation is not yet implemented."}
+              </p>
+            )}
+
+            {reviewStatus === "error" && (
+              <p style={{ color: "red" }}>{error}</p>
+            )}
+          </div>
         )}
       </main>
     );

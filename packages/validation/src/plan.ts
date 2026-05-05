@@ -1,15 +1,22 @@
 import { z } from "zod";
 
-export const planReviewSchema = z.object({
-  action: z.enum(["approve", "reject"]),
-  feedback: z
-    .string()
-    .min(1)
-    .optional()
-    .describe("Required when action is reject"),
+export const assessmentPlanParamsSchema = z.object({
+  assessmentId: z.string().uuid(),
 });
 
-export type PlanReviewInput = z.infer<typeof planReviewSchema>;
+export type AssessmentPlanParams = z.infer<typeof assessmentPlanParamsSchema>;
+
+export const planByIdParamsSchema = z.object({
+  planId: z.string().uuid(),
+});
+
+export type PlanByIdParams = z.infer<typeof planByIdParamsSchema>;
+
+export const rejectPlanBodySchema = z.object({
+  feedback: z.string().min(1),
+});
+
+export type RejectPlanBody = z.infer<typeof rejectPlanBodySchema>;
 
 export const exercisePrescriptionSchema = z.object({
   exerciseName: z.string().min(1).max(255),
