@@ -286,3 +286,67 @@ The following are explicitly out of scope for this slice:
 - **External calendar** — no calendar sync
 - **Analytics dashboards** — no charts or trend visualizations
 - **Workout reopening** — completed sessions cannot be reopened or edited
+
+---
+
+## Session Performance Summary (Added 2026-05-05)
+
+### `GET /api/workout-sessions/:sessionId/summary`
+
+Returns a derived performance summary comparing actual execution against prescribed exercises for a single session.
+
+**Response (200):**
+```json
+{
+  "sessionId": "uuid",
+  "sessionStatus": "completed",
+  "startedAt": "ISO timestamp",
+  "completedAt": "ISO timestamp | null",
+  "totalExercises": 3,
+  "completedExercises": 2,
+  "totalPrescribedSets": 9,
+  "totalLoggedSets": 7,
+  "totalPrescribedReps": 90,
+  "totalCompletedReps": 72,
+  "completionRate": 0.8,
+  "painReported": false,
+  "exercises": [
+    {
+      "exercisePrescriptionId": "uuid",
+      "exerciseName": "Bench Press",
+      "prescribedSets": 3,
+      "loggedSets": 3,
+      "prescribedRepsPerSet": 10,
+      "completedReps": 28,
+      "totalPrescribedReps": 30,
+      "completionRate": 0.93,
+      "status": "partial",
+      "painReported": false,
+      "setBreakdown": [
+        {
+          "setNumber": 1,
+          "prescribedReps": 10,
+          "actualReps": 10,
+          "prescribedWeightKg": 60,
+          "actualWeightKg": 60,
+          "rpeActual": 7,
+          "painReported": false,
+          "skipped": false,
+          "logged": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Error responses:**
+- `404`: Session not found.
+
+**Notes:**
+- This is single-session analysis only.
+- Long-term trend analysis and plan adjustment are out of scope.
+- Summary is read-only and derived from set log data.
+- `completionRate` may exceed 1.0 when extra reps or sets are logged.
+- Works for both in-progress and completed sessions.
+- Returns valid summary with empty exercises for sessions without a scheduled workout.
