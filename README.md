@@ -680,9 +680,51 @@ Fetch session details with planned exercises and actual set logs.
 
 - `404` — Session not found
 
+### GET /api/profiles/:profileId/progression-patterns
+
+Detect exercise-level progression patterns across recent completed sessions for a profile. This is read-only pattern detection — it does not modify plans, prescriptions, or scheduled workouts, and does not generate recommendations.
+
+**Query parameters:**
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `exerciseName` | No | — | Filter results to a specific exercise |
+| `limit` | No | `10` | Number of recent completed sessions to analyze (1–50) |
+
+**Response (200):**
+
+```json
+[
+  {
+    "patternType": "rep_shortfall",
+    "exerciseName": "Bench Press",
+    "severity": "warning",
+    "evidence": {
+      "sessionsAnalyzed": 5,
+      "occurrences": 3,
+      "sessionIds": ["uuid", "uuid", "uuid"]
+    },
+    "summary": "Bench Press: missed rep target in 3 of 4 recent sessions"
+  }
+]
+```
+
+Returns an empty array when there are fewer than 2 completed sessions or no patterns are detected.
+
+**Pattern types:**
+
+- `rep_shortfall` — Exercise completion rate below 90% in a majority of recent sessions
+- `consistent_completion` — Exercise completed at or above target in a majority of recent sessions
+- `pain_recurrence` — Pain reported for the same exercise in 2+ sessions
+
+**Error responses:**
+
+- `400` — Invalid profileId
+- `404` — Profile not found
+
 ---
 
-**Out of scope:** Progression analytics, missed workout detection, notifications, and authentication are not yet implemented. See `docs/specs/2026-05-04-workout-execution-logging-design.md` for the full design spec.
+**Out of scope:** Automatic progression recommendations, plan modifications, missed workout detection, notifications, and authentication are not yet implemented. Pattern detection is read-only and does not trigger any automated changes. See `docs/specs/2026-05-04-workout-execution-logging-design.md` for the full design spec.
 
 ## Running Tests
 
