@@ -17,7 +17,7 @@ export function generateScheduledDates(
   weeks: number,
   templateDays: number[],
 ): { date: string; dayOfWeek: number }[] {
-  const start = new Date(startDate + "T00:00:00");
+  const start = new Date(startDate + "T00:00:00Z");
   const endMs = start.getTime() + weeks * 7 * 24 * 60 * 60 * 1000;
   const results: { date: string; dayOfWeek: number }[] = [];
 
@@ -26,7 +26,7 @@ export function generateScheduledDates(
     const jsDay = (dbDay + 1) % 7;
 
     // Find first occurrence on or after start
-    const startJsDay = start.getDay();
+    const startJsDay = start.getUTCDay();
     const daysToAdd = (jsDay - startJsDay + 7) % 7;
     const firstMs = start.getTime() + daysToAdd * 24 * 60 * 60 * 1000;
 
@@ -34,9 +34,9 @@ export function generateScheduledDates(
     let currentMs = firstMs;
     while (currentMs < endMs) {
       const d = new Date(currentMs);
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
+      const yyyy = d.getUTCFullYear();
+      const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(d.getUTCDate()).padStart(2, "0");
       results.push({ date: `${yyyy}-${mm}-${dd}`, dayOfWeek: dbDay });
       currentMs += 7 * 24 * 60 * 60 * 1000;
     }
