@@ -121,4 +121,158 @@ export const workoutSessionRoutes: FastifyPluginAsync = async (app) => {
       rpeActual: log.rpeActual ? Number(log.rpeActual) : null,
     });
   });
+
+  // POST /api/workout-sessions/:sessionId/complete
+  app.post("/:sessionId/complete", async (request, reply) => {
+    const paramsParsed = sessionByIdParamsSchema.safeParse(request.params);
+    if (!paramsParsed.success) {
+      return reply.status(400).send({
+        error: "Validation failed",
+        details: paramsParsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const bodyParsed = completeSessionBodySchema.safeParse(
+      request.body ?? {},
+    );
+    if (!bodyParsed.success) {
+      return reply.status(400).send({
+        error: "Validation failed",
+        details: bodyParsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const { sessionId } = paramsParsed.data;
+    const { notes } = bodyParsed.data;
+
+    const [session] = await db
+      .select()
+      .from(workoutSessions)
+      .where(eq(workoutSessions.id, sessionId))
+      .limit(1);
+
+    if (!session) {
+      return reply.status(404).send({ error: "Workout session not found" });
+    }
+
+    if (session.status === "completed") {
+      return reply.status(200).send({
+        session,
+        alreadyCompleted: true,
+      });
+    }
+
+    const now = new Date();
+
+    // Update session
+    const [updated] = await db
+      .update(workoutSessions)
+      .set({
+        status: "completed",
+        completedAt: now,
+        notes: notes ?? session.notes,
+      })
+      .where(eq(workoutSessions.id, sessionId))
+      .returning();
+
+    // Mark scheduled workout as completed
+    if (session.scheduledWorkoutId) {
+      await db
+        .update(scheduledWorkouts)
+        .set({ status: "completed" })
+        .where(eq(scheduledWorkouts.id, session.scheduledWorkoutId));
+
+      // Insert clock_out attendance event
+      await db.insert(attendanceEvents).values({
+        scheduledWorkoutId: session.scheduledWorkoutId,
+        sessionId,
+        eventType: "clock_out",
+        scheduledTime: null,
+        actualTime: now,
+        varianceMinutes: null,
+      });
+    }
+
+    return reply.status(200).send({
+      session: updated,
+      alreadyCompleted: false,
+    });
+  });
+
+  // GET /api/workout-sessions/:sessionId
+  app.get("/:sessionId", async (request, reply) => {
+    const paramsParsed = sessionByIdParamsSchema.safeParse(request.params);
+    if (!paramsParsed.success) {
+      return reply.status(400).send({
+        error: "Validation failed",
+        details: paramsParsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const { sessionId } = paramsParsed.data;
+
+    const [session] = await db
+      .select()
+      .from(workoutSessions)
+      .where(eq(workoutSessions.id, sessionId))
+      .limit(1);
+
+    if (!session) {
+      return reply.status(404).send({ error: "Workout session not found" });
+    }
+
+    // Fetch planned exercises via scheduled workout's template
+    let plannedExercises: Array<Record<string, unknown>> = [];
+    if (session.scheduledWorkoutId) {
+      const [sw] = await db
+        .select()
+        .from(scheduledWorkouts)
+        .where(eq(scheduledWorkouts.id, session.scheduledWorkoutId))
+        .limit(1);
+
+      if (sw) {
+        const exercises = await db
+          .select()
+          .from(exercisePrescriptions)
+          .where(
+            eq(exercisePrescriptions.workoutTemplateId, sw.workoutTemplateId),
+          )
+          .orderBy(asc(exercisePrescriptions.orderInWorkout));
+
+        plannedExercises = exercises.map((ex) => ({
+          id: ex.id,
+          exerciseName: ex.exerciseName,
+          orderInWorkout: ex.orderInWorkout,
+          sets: ex.sets,
+          repMin: ex.repMin,
+          repMax: ex.repMax,
+          weightKg: ex.weightKg ? Number(ex.weightKg) : null,
+          rpeTarget: ex.rpeTarget,
+          restSeconds: ex.restSeconds,
+          notes: ex.notes,
+        }));
+      }
+    }
+
+    // Fetch set logs
+    const logs = await db
+      .select()
+      .from(setLogs)
+      .where(eq(setLogs.sessionId, sessionId));
+
+    return reply.status(200).send({
+      session,
+      plannedExercises,
+      setLogs: logs.map((log) => ({
+        ...log,
+        prescribedWeightKg: log.prescribedWeightKg
+          ? Number(log.prescribedWeightKg)
+          : null,
+        actualWeightKg: log.actualWeightKg
+          ? Number(log.actualWeightKg)
+          : null,
+        rpeActual: log.rpeActual ? Number(log.rpeActual) : null,
+      })),
+    });
+  });
 };

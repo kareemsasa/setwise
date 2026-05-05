@@ -148,11 +148,10 @@ async function createStartedSessionFixture(): Promise<StartedSessionFixture> {
 
 async function createCompletedSessionFixture(): Promise<StartedSessionFixture> {
   const fixture = await createStartedSessionFixture();
-  // The complete route isn't implemented yet, so mark completed directly via DB
-  await db
-    .update(workoutSessions)
-    .set({ status: "completed", completedAt: new Date() })
-    .where(eq(workoutSessions.id, fixture.sessionId));
+  await app.inject({
+    method: "POST",
+    url: `/api/workout-sessions/${fixture.sessionId}/complete`,
+  });
   return fixture;
 }
 
@@ -418,6 +417,157 @@ describe("POST /api/workout-sessions/:sessionId/set-logs", () => {
         setNumber: 1,
         repsCompleted: 8,
       },
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
+});
+
+describe("POST /api/workout-sessions/:sessionId/complete", () => {
+  it("completes an in_progress session (200)", async () => {
+    const { sessionId } = await createStartedSessionFixture();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/complete`,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.alreadyCompleted).toBe(false);
+    expect(body.session.status).toBe("completed");
+    expect(body.session.completedAt).toBeDefined();
+  });
+
+  it("returns idempotent response for already-completed session (200)", async () => {
+    const { sessionId } = await createCompletedSessionFixture();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/complete`,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.alreadyCompleted).toBe(true);
+    expect(body.session.status).toBe("completed");
+  });
+
+  it("accepts optional notes on completion (200)", async () => {
+    const { sessionId } = await createStartedSessionFixture();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/complete`,
+      payload: { notes: "Felt strong today" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().session.notes).toBe("Felt strong today");
+  });
+
+  it("returns 404 for non-existent session", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/workout-sessions/00000000-0000-0000-0000-000000000000/complete",
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("marks scheduled workout as completed", async () => {
+    const { sessionId, scheduledWorkoutId } =
+      await createStartedSessionFixture();
+
+    await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/complete`,
+    });
+
+    const [sw] = await db
+      .select()
+      .from(scheduledWorkouts)
+      .where(eq(scheduledWorkouts.id, scheduledWorkoutId));
+
+    expect(sw.status).toBe("completed");
+  });
+
+  it("creates a clock_out attendance event on completion", async () => {
+    const { sessionId, scheduledWorkoutId } =
+      await createStartedSessionFixture();
+
+    await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/complete`,
+    });
+
+    const events = await db
+      .select()
+      .from(attendanceEvents)
+      .where(eq(attendanceEvents.scheduledWorkoutId, scheduledWorkoutId));
+
+    const clockOuts = events.filter((e) => e.eventType === "clock_out");
+    expect(clockOuts).toHaveLength(1);
+    expect(clockOuts[0].actualTime).toBeDefined();
+  });
+
+  it("does not create duplicate clock_out on repeated completion", async () => {
+    const { sessionId, scheduledWorkoutId } =
+      await createStartedSessionFixture();
+
+    // Complete twice
+    await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/complete`,
+    });
+    await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/complete`,
+    });
+
+    const events = await db
+      .select()
+      .from(attendanceEvents)
+      .where(eq(attendanceEvents.scheduledWorkoutId, scheduledWorkoutId));
+
+    const clockOuts = events.filter((e) => e.eventType === "clock_out");
+    expect(clockOuts).toHaveLength(1);
+  });
+});
+
+describe("GET /api/workout-sessions/:sessionId", () => {
+  it("returns session with planned exercises and set logs (200)", async () => {
+    const { sessionId, exercises } = await createStartedSessionFixture();
+
+    // Log a set first
+    await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/set-logs`,
+      payload: {
+        exercisePrescriptionId: exercises[0].id,
+        setNumber: 1,
+        repsCompleted: 8,
+      },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/workout-sessions/${sessionId}`,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.session.id).toBe(sessionId);
+    expect(body.plannedExercises.length).toBeGreaterThan(0);
+    expect(body.setLogs).toHaveLength(1);
+    expect(body.setLogs[0].exercisePrescriptionId).toBe(exercises[0].id);
+    expect(body.setLogs[0].exerciseName).toBe(exercises[0].exerciseName);
+  });
+
+  it("returns 404 for non-existent session", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/workout-sessions/00000000-0000-0000-0000-000000000000",
     });
 
     expect(res.statusCode).toBe(404);
