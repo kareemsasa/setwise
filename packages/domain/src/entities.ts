@@ -117,6 +117,7 @@ export interface WorkoutSession {
 export interface SetLog {
   id: string;
   sessionId: string;
+  exercisePrescriptionId: string | null;
   exerciseName: string;
   setNumber: number;
   prescribedReps: number;
@@ -135,7 +136,7 @@ export interface AttendanceEvent {
   scheduledWorkoutId: string;
   sessionId: string | null;
   eventType: AttendanceEventType;
-  scheduledTime: string;
+  scheduledTime: string | null;
   actualTime: string | null;
   varianceMinutes: number | null;
   recordedAt: string;
