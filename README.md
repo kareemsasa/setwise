@@ -6,7 +6,7 @@ Setwise turns a user's profile, constraints, goals, schedule, and actual workout
 
 ## Status
 
-**Phase: Profile Creation** -- local Postgres, Drizzle migrations, and the first real endpoint (POST /api/profiles) are wired up.
+**Phase: Consultation Intake** -- profile creation and consultation intake data path are wired up. No real AI calls yet.
 
 ## Core Workflow
 
@@ -157,6 +157,96 @@ curl -X POST http://localhost:4000/api/profiles \
   -H "Content-Type: application/json" \
   -d '{"name":"Alice","email":"alice@example.com","heightCm":170,"weightKg":65,"dateOfBirth":"1990-05-15","biologicalSex":"female","experienceLevel":"intermediate"}'
 ```
+
+### POST /api/profiles/:profileId/consultations
+
+Create a consultation with structured intake data for a profile.
+
+**Request body:**
+
+```json
+{
+  "injuriesAndRestrictions": [],
+  "equipment": {
+    "location": "commercial_gym",
+    "locationNotes": "",
+    "availableEquipment": ["barbell", "dumbbells", "cables"],
+    "equipmentLimitations": ""
+  },
+  "goals": {
+    "primaryGoal": "strength",
+    "secondaryGoals": [],
+    "specificTargets": ["bench 100kg"],
+    "timeline": "6 months"
+  },
+  "schedule": {
+    "daysPerWeek": 4,
+    "availableDays": ["monday", "tuesday", "thursday", "friday"],
+    "preferredTime": "morning",
+    "sessionLengthMinutes": 60,
+    "upcomingDisruptions": ""
+  },
+  "trainingHistory": {
+    "experienceDuration": "2 years",
+    "recentProgram": "PPL",
+    "familiarExercises": ["squat", "bench press", "deadlift"],
+    "recentWorkingWeights": [
+      { "exercise": "bench press", "weightKg": 80, "reps": 5, "notes": "" }
+    ],
+    "pastObservations": ""
+  },
+  "preferences": {
+    "likedExercises": [],
+    "dislikedExercises": [],
+    "trainingStyle": "",
+    "cardioPreference": "",
+    "otherNotes": ""
+  },
+  "safetyFlags": [],
+  "agentNotes": ""
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "id": "uuid",
+  "profileId": "uuid",
+  "status": "completed",
+  "startedAt": "2026-05-04T...",
+  "completedAt": "2026-05-04T...",
+  "structuredOutput": { ... }
+}
+```
+
+**Error responses:**
+
+- `400` — Validation failed (missing/invalid fields)
+- `404` — Profile not found
+
+### GET /api/profiles/:profileId/consultations
+
+List all consultations for a profile.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "uuid",
+    "profileId": "uuid",
+    "status": "completed",
+    "startedAt": "2026-05-04T...",
+    "completedAt": "2026-05-04T...",
+    "structuredOutput": { ... }
+  }
+]
+```
+
+**Error responses:**
+
+- `404` — Profile not found
 
 ## Running Tests
 

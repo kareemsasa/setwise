@@ -13,7 +13,7 @@ export function buildApp() {
 
   app.register(healthRoutes);
   app.register(profileRoutes, { prefix: "/api/profiles" });
-  app.register(consultationRoutes, { prefix: "/api/consultations" });
+  app.register(consultationRoutes, { prefix: "/api/profiles/:profileId/consultations" });
   app.register(assessmentRoutes, { prefix: "/api/assessments" });
   app.register(planRoutes, { prefix: "/api/plans" });
   app.register(scheduledWorkoutRoutes, { prefix: "/api/scheduled-workouts" });

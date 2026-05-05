@@ -96,3 +96,13 @@ export const structuredIntakeOutputSchema = z.object({
 export type StructuredIntakeOutput = z.infer<
   typeof structuredIntakeOutputSchema
 >;
+
+export const createConsultationSchema = structuredIntakeOutputSchema.omit({
+  consultationId: true,
+  userId: true,
+  completedAt: true,
+});
+
+export type CreateConsultationInput = z.infer<
+  typeof createConsultationSchema
+>;
