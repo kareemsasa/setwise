@@ -6,7 +6,7 @@ Setwise turns a user's profile, constraints, goals, schedule, and actual workout
 
 ## Status
 
-**Phase: Draft Plan Lifecycle** -- profile creation, consultation intake, assessment handoff, and draft plan lifecycle are wired up. Plan generation is deterministic/mock. Approved plans do not yet generate scheduled workouts. No real AI calls yet.
+**Phase: Scheduled Workout Generation** -- profile creation, consultation intake, assessment handoff, draft plan lifecycle, and scheduled workout generation are wired up. Plan generation and exercise prescriptions are deterministic/mock. No workout logging, clock-in, or missed detection yet. No real AI calls yet.
 
 ## Core Workflow
 
@@ -412,7 +412,7 @@ Approve a draft plan. Sets both the plan status and latest version status to `ap
 - `404` — Plan not found
 - `409` — Plan is not in draft status (already approved, rejected, or no version)
 
-**Note:** Approved plans do not yet generate scheduled workouts.
+**Note:** After approval, use `POST /api/plans/:planId/scheduled-workouts` to generate workout instances.
 
 ### POST /api/plans/:planId/reject
 
@@ -435,6 +435,131 @@ Reject a draft plan with feedback. The latest version is marked `rejected` with 
 - `409` — Plan is not in draft status (already approved, rejected, or no version)
 
 **Note:** This slice does not auto-generate a revised version. A future revision endpoint will handle that.
+
+### POST /api/plans/:planId/scheduled-workouts
+
+Generate scheduled workout instances from an approved plan. Creates workout templates, exercise prescriptions, and scheduled workout records in a single transaction.
+
+**Optional request body:**
+
+```json
+{
+  "startDate": "2026-06-01",
+  "weeks": 4
+}
+```
+
+- `startDate`: ISO date (YYYY-MM-DD). Defaults to today.
+- `weeks`: 1--12. Defaults to 4.
+
+**Response (201):**
+
+```json
+{
+  "planId": "uuid",
+  "planVersionId": "uuid",
+  "versionNumber": 1,
+  "generatedCount": 16,
+  "scheduledWorkouts": [
+    {
+      "id": "uuid",
+      "profileId": "uuid",
+      "planVersionId": "uuid",
+      "scheduledDate": "2026-06-01",
+      "scheduledTime": null,
+      "status": "upcoming",
+      "template": {
+        "id": "uuid",
+        "name": "Heavy Compound",
+        "dayOfWeek": 0,
+        "estimatedDurationMinutes": 60
+      }
+    }
+  ]
+}
+```
+
+**Error responses:**
+
+- `400` — Invalid plan ID or body
+- `404` — Plan not found
+- `409` — Plan is not approved, latest version is not approved, or workouts already exist for this version
+
+**Duplicate behavior:** If workouts already exist for the approved plan version, returns 409 with the existing workouts. Does not generate duplicates.
+
+**Note:** Generated workouts are planned instances only. Workout execution and logging are not yet implemented.
+
+### GET /api/scheduled-workouts
+
+List scheduled workouts, optionally filtered by date range.
+
+**Query params:**
+
+- `start` (optional): ISO date. Filter `scheduledDate >= start`.
+- `end` (optional): ISO date. Filter `scheduledDate <= end`.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "uuid",
+    "profileId": "uuid",
+    "planVersionId": "uuid",
+    "scheduledDate": "2026-06-01",
+    "scheduledTime": null,
+    "status": "upcoming",
+    "template": {
+      "id": "uuid",
+      "name": "Heavy Compound",
+      "dayOfWeek": 0,
+      "estimatedDurationMinutes": 60
+    }
+  }
+]
+```
+
+### GET /api/scheduled-workouts/:scheduledWorkoutId
+
+Fetch a single scheduled workout with full exercise list.
+
+**Response (200):**
+
+```json
+{
+  "id": "uuid",
+  "profileId": "uuid",
+  "planVersionId": "uuid",
+  "scheduledDate": "2026-06-01",
+  "scheduledTime": null,
+  "status": "upcoming",
+  "template": {
+    "id": "uuid",
+    "name": "Heavy Compound",
+    "dayOfWeek": 0,
+    "estimatedDurationMinutes": 60,
+    "exercises": [
+      {
+        "id": "uuid",
+        "exerciseName": "Goblet Squat",
+        "orderInWorkout": 1,
+        "sets": 4,
+        "repMin": 4,
+        "repMax": 6,
+        "weightKg": null,
+        "rpeTarget": 8,
+        "restSeconds": 180,
+        "notes": null
+      }
+    ]
+  }
+}
+```
+
+**Error responses:**
+
+- `400` — Invalid workout ID
+- `404` — Scheduled workout not found
 
 ## Running Tests
 
