@@ -117,9 +117,11 @@ Insert an `attendance_events` row:
 - `eventType: 'clock_in'`
 - `scheduledWorkoutId` from the scheduled workout
 - `sessionId` from the newly created session
-- `scheduledTime` from `scheduled_workouts.scheduled_time` (or `scheduled_date` at midnight UTC if no time)
+- `scheduledTime` from `scheduled_workouts.scheduled_time` if present, `null` if the workout only has `scheduled_date`
 - `actualTime: new Date()`
-- `varianceMinutes`: computed as `actualTime - scheduledTime` in minutes if `scheduledTime` exists, `null` otherwise
+- `varianceMinutes`: computed as `actualTime - scheduledTime` in minutes only when `scheduled_time` exists, `null` otherwise
+
+**Note:** Do not use `scheduled_date` at midnight as a synthetic scheduled time. The scheduled date is available in session/workout responses for context, but it must not be used for variance calculation.
 - `recordedAt: new Date()`
 
 ### On session completion (clock_out)
@@ -163,7 +165,11 @@ Insert an `attendance_events` row:
 4. Fetch exercise prescription by `exercisePrescriptionId` — 404 if missing
 5. Verify prescription belongs to session's scheduled workout's template — 409 if mismatch
 6. Insert `set_logs` row with FK and denormalized snapshots
-7. Return 201 with set log
+7. Return 201 with set log including `exercisePrescriptionId` (camelCase in JSON response)
+
+### Response shape notes
+
+All API responses use camelCase for JSON keys. Set log responses and session detail responses expose `exercisePrescriptionId` so the web UI can group actual set logs under their planned exercise prescription. The DB column is `exercise_prescription_id`; the API maps it to camelCase in the response.
 
 ### `POST /api/workout-sessions/:sessionId/complete`
 
