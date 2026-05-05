@@ -6,7 +6,7 @@ Setwise turns a user's profile, constraints, goals, schedule, and actual workout
 
 ## Status
 
-**Phase: Consultation Intake** -- profile creation and consultation intake data path are wired up. No real AI calls yet.
+**Phase: Assessment Handoff** -- profile creation, consultation intake, and assessment handoff are wired up. Assessment is a status record only; plan generation is not yet implemented. No real AI calls yet.
 
 ## Core Workflow
 
@@ -247,6 +247,80 @@ List all consultations for a profile.
 **Error responses:**
 
 - `404` — Profile not found
+
+### POST /api/consultations/:consultationId/assessments
+
+Create an assessment from a completed consultation. The assessment is a status record only — no plan generation occurs yet.
+
+**Response (201):**
+
+```json
+{
+  "id": "uuid",
+  "consultationId": "uuid",
+  "status": "pending",
+  "inputSnapshot": { "..." : "..." },
+  "result": null,
+  "createdAt": "2026-05-04T...",
+  "completedAt": null
+}
+```
+
+**Error responses:**
+
+- `400` — Invalid consultation ID (not a UUID)
+- `404` — Consultation not found
+- `409` — An active assessment (pending/processing) already exists for this consultation
+- `422` — Consultation is not completed
+
+**Duplicate handling:** If a pending or processing assessment already exists, returns 409 with the existing assessment. If all previous assessments are completed or failed, a new assessment is allowed.
+
+### GET /api/consultations/:consultationId/assessments
+
+List all assessments for a consultation, ordered by creation date (newest first).
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "uuid",
+    "consultationId": "uuid",
+    "status": "pending",
+    "inputSnapshot": { "..." : "..." },
+    "result": null,
+    "createdAt": "2026-05-04T...",
+    "completedAt": null
+  }
+]
+```
+
+**Error responses:**
+
+- `404` — Consultation not found
+
+### GET /api/assessments/:assessmentId
+
+Fetch a single assessment by ID.
+
+**Response (200):**
+
+```json
+{
+  "id": "uuid",
+  "consultationId": "uuid",
+  "status": "pending",
+  "inputSnapshot": { "..." : "..." },
+  "result": null,
+  "createdAt": "2026-05-04T...",
+  "completedAt": null
+}
+```
+
+**Error responses:**
+
+- `400` — Invalid assessment ID (not a UUID)
+- `404` — Assessment not found
 
 ## Running Tests
 

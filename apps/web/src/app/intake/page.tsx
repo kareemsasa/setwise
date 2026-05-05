@@ -17,10 +17,14 @@ export default function IntakePage() {
     "profile",
   );
   const [profileId, setProfileId] = useState("");
+  const [consultationId, setConsultationId] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "error">(
     "idle",
   );
   const [error, setError] = useState("");
+  const [assessmentStatus, setAssessmentStatus] = useState<
+    "idle" | "submitting" | "created" | "conflict" | "error"
+  >("idle");
 
   async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -128,6 +132,8 @@ export default function IntakePage() {
         return;
       }
 
+      const body = await res.json();
+      setConsultationId(body.id);
       setStatus("idle");
       setPhase("done");
     } catch {
@@ -136,14 +142,66 @@ export default function IntakePage() {
     }
   }
 
+  async function handleAssessmentSubmit() {
+    setAssessmentStatus("submitting");
+    setError("");
+
+    try {
+      const res = await fetch(
+        `${API}/api/consultations/${consultationId}/assessments`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+
+      if (res.status === 201) {
+        setAssessmentStatus("created");
+        return;
+      }
+
+      if (res.status === 409) {
+        setAssessmentStatus("conflict");
+        return;
+      }
+
+      const body = await res.json();
+      setError(body.error || "Request failed");
+      setAssessmentStatus("error");
+    } catch {
+      setError("Could not reach the API. Is it running on port 4000?");
+      setAssessmentStatus("error");
+    }
+  }
+
   if (phase === "done") {
     return (
       <main style={containerStyle}>
         <h1>Intake Complete</h1>
-        <p>
-          Your profile and consultation data have been saved. Plan generation is
-          not yet implemented.
-        </p>
+        <p>Your profile and consultation data have been saved.</p>
+
+        {assessmentStatus === "idle" && (
+          <button onClick={handleAssessmentSubmit} disabled={!consultationId}>
+            Submit for Assessment
+          </button>
+        )}
+
+        {assessmentStatus === "submitting" && <p>Submitting...</p>}
+
+        {assessmentStatus === "created" && (
+          <p>
+            Assessment created with status: <strong>pending</strong>. Plan
+            generation is not yet implemented.
+          </p>
+        )}
+
+        {assessmentStatus === "conflict" && (
+          <p>An assessment is already in progress for this consultation.</p>
+        )}
+
+        {assessmentStatus === "error" && (
+          <p style={{ color: "red" }}>{error}</p>
+        )}
       </main>
     );
   }

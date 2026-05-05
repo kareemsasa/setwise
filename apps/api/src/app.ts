@@ -3,6 +3,7 @@ import { healthRoutes } from "./routes/health.js";
 import { profileRoutes } from "./routes/profile.js";
 import { consultationRoutes } from "./routes/consultations.js";
 import { assessmentRoutes } from "./routes/assessments.js";
+import { consultationAssessmentRoutes } from "./routes/consultation-assessments.js";
 import { planRoutes } from "./routes/plans.js";
 import { scheduledWorkoutRoutes } from "./routes/scheduled-workouts.js";
 import { workoutSessionRoutes } from "./routes/workout-sessions.js";
@@ -14,6 +15,7 @@ export function buildApp() {
   app.register(healthRoutes);
   app.register(profileRoutes, { prefix: "/api/profiles" });
   app.register(consultationRoutes, { prefix: "/api/profiles/:profileId/consultations" });
+  app.register(consultationAssessmentRoutes, { prefix: "/api/consultations/:consultationId/assessments" });
   app.register(assessmentRoutes, { prefix: "/api/assessments" });
   app.register(planRoutes, { prefix: "/api/plans" });
   app.register(scheduledWorkoutRoutes, { prefix: "/api/scheduled-workouts" });
