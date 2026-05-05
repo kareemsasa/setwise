@@ -68,7 +68,9 @@ export const planScheduledWorkoutRoutes: FastifyPluginAsync = async (app) => {
 
     // Plan status is approved
     if (plan.status !== "approved") {
-      return reply.status(409).send({ error: "Plan is not approved" });
+      return reply
+        .status(409)
+        .send({ error: "Plan is not approved", currentStatus: plan.status });
     }
 
     // Latest PlanVersion status is approved
@@ -80,9 +82,10 @@ export const planScheduledWorkoutRoutes: FastifyPluginAsync = async (app) => {
       .limit(1);
 
     if (!latestVersion || latestVersion.status !== "approved") {
-      return reply
-        .status(409)
-        .send({ error: "Latest plan version is not approved" });
+      return reply.status(409).send({
+        error: "Latest plan version is not approved",
+        currentStatus: latestVersion?.status ?? "no version",
+      });
     }
 
     // No scheduled workouts already exist for this plan version
