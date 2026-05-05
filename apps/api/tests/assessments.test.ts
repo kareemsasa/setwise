@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { buildApp } from "../src/app.js";
-import { db, eq, assessments } from "@setwise/db";
+import { db, eq, assessments, consultations, userProfiles } from "@setwise/db";
 
 const app = buildApp();
 
@@ -126,6 +126,39 @@ describe("POST /api/consultations/:consultationId/assessments", () => {
 
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toBe("Validation failed");
+  });
+
+  it("returns 422 for a non-completed consultation", async () => {
+    const [profile] = await db
+      .insert(userProfiles)
+      .values({
+        name: "Non-complete Tester",
+        email: `non-complete-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`,
+        heightCm: "175.0",
+        weightKg: "80.0",
+        dateOfBirth: "1992-03-10",
+        biologicalSex: "male",
+        experienceLevel: "intermediate",
+      })
+      .returning();
+
+    const [consultation] = await db
+      .insert(consultations)
+      .values({
+        userId: profile.id,
+        status: "in_progress",
+        structuredOutput: null,
+      })
+      .returning();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/consultations/${consultation.id}/assessments`,
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error).toBe("Consultation is not completed");
+    expect(res.json().status).toBe("in_progress");
   });
 
   it("returns 409 when a pending assessment already exists", async () => {
