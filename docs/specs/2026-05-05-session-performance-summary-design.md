@@ -99,6 +99,15 @@ Extra sets are NOT included in:
 
 This means `completionRate` may exceed 1.
 
+## Skipped Sets
+
+- `skipped: true` counts as `logged: true`.
+- `actualReps` remains whatever is stored on the set log (typically 0).
+- Skipped sets contribute to `loggedSets`.
+- Skipped sets do not add completed reps unless `actualReps > 0`.
+- Skipped sets can still carry `painReported` if present.
+- No skipped-set UX in this slice. This is only summary behavior for data that may already exist.
+
 ## Unlogged Set Placeholders
 
 For each prescribed set number without a matching log, include a placeholder in `setBreakdown`:
