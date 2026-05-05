@@ -259,3 +259,167 @@ describe("GET /api/scheduled-workouts/:scheduledWorkoutId/session", () => {
     expect(res.statusCode).toBe(404);
   });
 });
+
+describe("POST /api/workout-sessions/:sessionId/set-logs", () => {
+  it("logs a valid set (201)", async () => {
+    const { sessionId, exercises } = await createStartedSessionFixture();
+    const exercise = exercises[0];
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/set-logs`,
+      payload: {
+        exercisePrescriptionId: exercise.id,
+        setNumber: 1,
+        repsCompleted: 8,
+        weightKg: 60,
+        rpe: 7.5,
+        painReported: false,
+        notes: null,
+      },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.id).toBeDefined();
+    expect(body.exercisePrescriptionId).toBe(exercise.id);
+    expect(body.exerciseName).toBe(exercise.exerciseName);
+    expect(body.setNumber).toBe(1);
+    expect(body.actualReps).toBe(8);
+    expect(body.prescribedReps).toBe(exercise.repMax);
+  });
+
+  it("logs a set with optional fields omitted (201)", async () => {
+    const { sessionId, exercises } = await createStartedSessionFixture();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/set-logs`,
+      payload: {
+        exercisePrescriptionId: exercises[0].id,
+        setNumber: 1,
+        repsCompleted: 6,
+      },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.rpeActual).toBeNull();
+    expect(body.actualWeightKg).toBeNull();
+  });
+
+  it("logs a set with painReported true (201)", async () => {
+    const { sessionId, exercises } = await createStartedSessionFixture();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/set-logs`,
+      payload: {
+        exercisePrescriptionId: exercises[0].id,
+        setNumber: 1,
+        repsCompleted: 4,
+        painReported: true,
+        notes: "Left knee discomfort",
+      },
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.json().painReported).toBe(true);
+    expect(res.json().painNotes).toBe("Left knee discomfort");
+  });
+
+  it("persists exercisePrescriptionId on the set log", async () => {
+    const { sessionId, exercises } = await createStartedSessionFixture();
+    const exercise = exercises[0];
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/set-logs`,
+      payload: {
+        exercisePrescriptionId: exercise.id,
+        setNumber: 1,
+        repsCompleted: 8,
+      },
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.json().exercisePrescriptionId).toBe(exercise.id);
+  });
+
+  it("rejects set log for prescription not in session template (409)", async () => {
+    const fixture1 = await createStartedSessionFixture();
+    const fixture2 = await createScheduledWorkoutFixture();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${fixture1.sessionId}/set-logs`,
+      payload: {
+        exercisePrescriptionId: fixture2.exercises[0].id,
+        setNumber: 1,
+        repsCompleted: 8,
+      },
+    });
+
+    expect(res.statusCode).toBe(409);
+  });
+
+  it("rejects set log for non-existent prescription (404)", async () => {
+    const { sessionId } = await createStartedSessionFixture();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/set-logs`,
+      payload: {
+        exercisePrescriptionId: "00000000-0000-0000-0000-000000000000",
+        setNumber: 1,
+        repsCompleted: 8,
+      },
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("rejects set log after session completion (409)", async () => {
+    const { sessionId, exercises } = await createCompletedSessionFixture();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/set-logs`,
+      payload: {
+        exercisePrescriptionId: exercises[0].id,
+        setNumber: 1,
+        repsCompleted: 8,
+      },
+    });
+
+    expect(res.statusCode).toBe(409);
+  });
+
+  it("rejects set log with invalid body (400)", async () => {
+    const { sessionId } = await createStartedSessionFixture();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/workout-sessions/${sessionId}/set-logs`,
+      payload: {
+        repsCompleted: 8,
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("returns 404 for non-existent session", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/workout-sessions/00000000-0000-0000-0000-000000000000/set-logs",
+      payload: {
+        exercisePrescriptionId: "00000000-0000-0000-0000-000000000000",
+        setNumber: 1,
+        repsCompleted: 8,
+      },
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
+});
