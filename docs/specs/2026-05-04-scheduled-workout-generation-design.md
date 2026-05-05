@@ -201,7 +201,7 @@ Lives in `apps/api/src/mock-exercise-generator.ts`.
 |---------------------|---------------------------------------------------------------------|------|-----------|-----|-------|
 | Heavy Compound      | Goblet Squat, Dumbbell Bench Press, Dumbbell Row, Romanian Deadlift | 4    | 4--6      | 8   | 180s  |
 | Accessory Strength  | Split Squat, Incline DB Press, Cable Row, Face Pull, Lateral Raise  | 3    | 8--12     | 7   | 90s   |
-| Power Development   | Dumbbell Push Press, Split Squat Jump, Cable Row, Farmer Carry      | 4    | 5--8      | 7   | 120s  |
+| Power Development   | DB Shoulder Press, Split Squat, Cable Row, Farmer Carry             | 4    | 5--8      | 7   | 120s  |
 | Upper Hypertrophy   | Dumbbell Bench Press, Cable Row, DB Shoulder Press, Cable Pressdown, Face Pull | 3 | 10--15 | 7 | 60s |
 | Lower Hypertrophy   | Leg Press, Split Squat, Leg Curl, Calf Raise, Hip Thrust            | 3    | 10--15    | 7   | 60s   |
 | Full Body Volume    | Goblet Squat, Dumbbell Bench Press, Cable Row, DB Shoulder Press, Plank | 3 | 10--12 | 7 | 60s |
