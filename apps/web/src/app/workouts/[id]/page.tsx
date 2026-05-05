@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { WorkoutExecution } from "./workout-execution";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -104,6 +105,11 @@ export default async function WorkoutPage({
           </tbody>
         </table>
       )}
+
+      <WorkoutExecution
+        scheduledWorkoutId={workout.id}
+        exercises={workout.template.exercises}
+      />
 
       <p>
         <a href="/calendar">Back to calendar</a>

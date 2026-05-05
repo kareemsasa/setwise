@@ -487,7 +487,7 @@ Generate scheduled workout instances from an approved plan. Creates workout temp
 
 **Duplicate behavior:** If workouts already exist for the approved plan version, returns 409 with the existing workouts. Does not generate duplicates.
 
-**Note:** Generated workouts are planned instances only. Workout execution and logging are not yet implemented.
+**Note:** Generated workouts are planned instances only. Use the execution endpoints below to start workouts and log sets.
 
 ### GET /api/scheduled-workouts
 
@@ -560,6 +560,129 @@ Fetch a single scheduled workout with full exercise list.
 
 - `400` — Invalid workout ID
 - `404` — Scheduled workout not found
+
+### POST /api/scheduled-workouts/:scheduledWorkoutId/start
+
+Start (or resume) a workout session for a scheduled workout.
+
+**Response (201 — new session):**
+
+```json
+{
+  "session": {
+    "id": "uuid",
+    "scheduledWorkoutId": "uuid",
+    "userId": "uuid",
+    "planVersionId": "uuid",
+    "startedAt": "2026-06-01T09:00:00.000Z",
+    "completedAt": null,
+    "status": "in_progress",
+    "notes": null
+  },
+  "created": true
+}
+```
+
+**Response (200 — existing in-progress session):** Same shape with `"created": false`.
+
+**Error responses:**
+
+- `400` — Invalid scheduled workout ID
+- `404` — Scheduled workout not found
+- `409` — A completed session already exists for this scheduled workout
+
+### GET /api/scheduled-workouts/:scheduledWorkoutId/session
+
+Look up the workout session for a scheduled workout.
+
+**Response (200):**
+
+```json
+{
+  "session": { "..." : "..." },
+  "plannedExercises": [ { "id": "uuid", "exerciseName": "Goblet Squat", "..." : "..." } ],
+  "setLogs": [ { "id": "uuid", "exercisePrescriptionId": "uuid", "..." : "..." } ]
+}
+```
+
+**Error responses:**
+
+- `404` — No session found for this scheduled workout
+
+### POST /api/workout-sessions/:sessionId/set-logs
+
+Log a completed set against a planned exercise prescription.
+
+**Request body:**
+
+```json
+{
+  "exercisePrescriptionId": "uuid",
+  "setNumber": 1,
+  "repsCompleted": 8,
+  "weightKg": 60,
+  "rpe": 7.5,
+  "painReported": false,
+  "notes": null
+}
+```
+
+**Response (201):** Returns the created set log with `exercisePrescriptionId`, denormalized `exerciseName`, `prescribedReps`, and actual values.
+
+**Error responses:**
+
+- `400` — Invalid session ID or request body
+- `404` — Session or exercise prescription not found
+- `409` — Session is not in progress, or prescription does not belong to this workout's template
+
+### POST /api/workout-sessions/:sessionId/complete
+
+Complete a workout session. Idempotent — safe to call multiple times.
+
+**Optional request body:**
+
+```json
+{
+  "notes": "Felt strong today"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "session": { "..." : "...", "status": "completed", "completedAt": "2026-06-01T10:00:00.000Z" },
+  "alreadyCompleted": false
+}
+```
+
+Repeated calls return `"alreadyCompleted": true`.
+
+**Error responses:**
+
+- `404` — Session not found
+
+### GET /api/workout-sessions/:sessionId
+
+Fetch session details with planned exercises and actual set logs.
+
+**Response (200):**
+
+```json
+{
+  "session": { "..." : "..." },
+  "plannedExercises": [ { "..." : "..." } ],
+  "setLogs": [ { "..." : "..." } ]
+}
+```
+
+**Error responses:**
+
+- `404` — Session not found
+
+---
+
+**Out of scope:** Progression analytics, missed workout detection, notifications, and authentication are not yet implemented. See `docs/specs/2026-05-04-workout-execution-logging-design.md` for the full design spec.
 
 ## Running Tests
 

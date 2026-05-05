@@ -1,0 +1,3 @@
+ALTER TABLE "attendance_events" ALTER COLUMN "scheduled_time" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "set_logs" ADD COLUMN "exercise_prescription_id" uuid;--> statement-breakpoint
+ALTER TABLE "set_logs" ADD CONSTRAINT "set_logs_exercise_prescription_id_exercise_prescriptions_id_fk" FOREIGN KEY ("exercise_prescription_id") REFERENCES "public"."exercise_prescriptions"("id") ON DELETE no action ON UPDATE no action;
