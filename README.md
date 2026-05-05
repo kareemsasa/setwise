@@ -6,7 +6,7 @@ Setwise turns a user's profile, constraints, goals, schedule, and actual workout
 
 ## Status
 
-**Phase: Scaffold** -- monorepo structure with domain types, placeholder routes, and initial progression rules. No business logic or persistence yet.
+**Phase: Profile Creation** -- local Postgres, Drizzle migrations, and the first real endpoint (POST /api/profiles) are wired up.
 
 ## Core Workflow
 
@@ -35,7 +35,7 @@ setwise/
   packages/
     domain/                  # Pure TypeScript types and enums
     training-core/           # Deterministic progression rules
-    db/                      # Drizzle ORM schema and config
+    db/                      # Drizzle ORM schema, client, and migrations
     validation/              # Zod schemas for API input
   docs/
     product-brief.md         # product thesis, target user, MVP scope
@@ -52,18 +52,116 @@ setwise/
 - pnpm workspaces + Turborepo
 - Next.js 15 (App Router) for the web app
 - Fastify 5 for the API
-- PostgreSQL + Drizzle ORM
+- PostgreSQL 16 + Drizzle ORM
 - Zod for validation
 - Vitest for tests
 
+## Prerequisites
+
+- Node.js 20+
+- pnpm 10+
+- Docker (for local Postgres)
+
 ## Local Development
 
+### 1. Install dependencies
+
 ```sh
-pnpm install          # install dependencies
-pnpm dev              # start web + api in dev mode
-pnpm build            # build all packages
-pnpm test             # run tests
-pnpm typecheck        # type-check all packages
+pnpm install
 ```
 
-Requires Node.js 20+ and pnpm 10+. Postgres is needed once persistence is wired up (not yet required).
+### 2. Start the database
+
+```sh
+docker compose up -d
+```
+
+This starts a local Postgres on port 5432 with database `setwise`, user `setwise`, password `setwise`.
+
+### 3. Set up environment variables
+
+```sh
+cp .env.example .env
+```
+
+The default `DATABASE_URL` points to the Docker Postgres instance.
+
+### 4. Run database migrations
+
+```sh
+pnpm db:migrate
+```
+
+### 5. Start development servers
+
+```sh
+pnpm dev
+```
+
+This starts the API on http://localhost:4000 and the web app on http://localhost:3000.
+
+## Database Commands
+
+```sh
+pnpm db:generate   # Generate new migration from schema changes
+pnpm db:migrate    # Apply pending migrations
+pnpm db:studio     # Open Drizzle Studio (database browser)
+```
+
+## API Endpoints
+
+### POST /api/profiles
+
+Create a new user profile.
+
+**Request body:**
+
+```json
+{
+  "name": "Alice Johnson",
+  "email": "alice@example.com",
+  "heightCm": 170,
+  "weightKg": 65,
+  "dateOfBirth": "1990-05-15",
+  "biologicalSex": "female",
+  "experienceLevel": "intermediate"
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "id": "uuid",
+  "name": "Alice Johnson",
+  "email": "alice@example.com",
+  "heightCm": "170.0",
+  "weightKg": "65.0",
+  "dateOfBirth": "1990-05-15",
+  "biologicalSex": "female",
+  "experienceLevel": "intermediate",
+  "createdAt": "2026-05-04T...",
+  "updatedAt": "2026-05-04T..."
+}
+```
+
+**Error responses:**
+
+- `400` — Validation failed (missing/invalid fields)
+- `409` — Email already exists
+
+**Example with curl:**
+
+```sh
+curl -X POST http://localhost:4000/api/profiles \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alice","email":"alice@example.com","heightCm":170,"weightKg":65,"dateOfBirth":"1990-05-15","biologicalSex":"female","experienceLevel":"intermediate"}'
+```
+
+## Running Tests
+
+```sh
+DATABASE_URL=postgresql://setwise:setwise@localhost:5432/setwise pnpm test
+```
+
+Tests require a running Postgres instance (via `docker compose up -d`) with migrations applied.
