@@ -10,6 +10,7 @@ import { planScheduledWorkoutRoutes } from "./routes/plan-scheduled-workouts.js"
 import { scheduledWorkoutRoutes } from "./routes/scheduled-workouts.js";
 import { workoutSessionRoutes } from "./routes/workout-sessions.js";
 import { progressionRoutes } from "./routes/progression.js";
+import { profileProgressionPatternRoutes } from "./routes/profile-progression-patterns.js";
 
 export function buildApp() {
   const app = Fastify({ logger: false });
@@ -25,6 +26,7 @@ export function buildApp() {
   app.register(scheduledWorkoutRoutes, { prefix: "/api/scheduled-workouts" });
   app.register(workoutSessionRoutes, { prefix: "/api/workout-sessions" });
   app.register(progressionRoutes, { prefix: "/api/progression" });
+  app.register(profileProgressionPatternRoutes, { prefix: "/api/profiles/:profileId/progression-patterns" });
 
   return app;
 }
