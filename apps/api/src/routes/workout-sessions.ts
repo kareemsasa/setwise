@@ -16,6 +16,7 @@ import {
   workoutTemplates,
   attendanceEvents,
 } from "@setwise/db";
+import { computeSessionSummary } from "@setwise/training-core";
 
 export const workoutSessionRoutes: FastifyPluginAsync = async (app) => {
   // POST /api/workout-sessions/:sessionId/set-logs
@@ -274,5 +275,104 @@ export const workoutSessionRoutes: FastifyPluginAsync = async (app) => {
         rpeActual: log.rpeActual ? Number(log.rpeActual) : null,
       })),
     });
+  });
+
+  // GET /api/workout-sessions/:sessionId/summary
+  app.get("/:sessionId/summary", async (request, reply) => {
+    const paramsParsed = sessionByIdParamsSchema.safeParse(request.params);
+    if (!paramsParsed.success) {
+      return reply.status(400).send({
+        error: "Validation failed",
+        details: paramsParsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const { sessionId } = paramsParsed.data;
+
+    const [session] = await db
+      .select()
+      .from(workoutSessions)
+      .where(eq(workoutSessions.id, sessionId))
+      .limit(1);
+
+    if (!session) {
+      return reply.status(404).send({ error: "Workout session not found" });
+    }
+
+    // Resolve prescriptions via scheduled workout's template
+    const prescriptionRows = session.scheduledWorkoutId
+      ? await (async () => {
+          const [sw] = await db
+            .select()
+            .from(scheduledWorkouts)
+            .where(eq(scheduledWorkouts.id, session.scheduledWorkoutId!))
+            .limit(1);
+
+          if (!sw) return [];
+
+          return db
+            .select()
+            .from(exercisePrescriptions)
+            .where(
+              eq(
+                exercisePrescriptions.workoutTemplateId,
+                sw.workoutTemplateId,
+              ),
+            )
+            .orderBy(asc(exercisePrescriptions.orderInWorkout));
+        })()
+      : [];
+
+    // Fetch all set logs for this session, ordered by id (insertion order)
+    const logRows = await db
+      .select()
+      .from(setLogs)
+      .where(eq(setLogs.sessionId, sessionId))
+      .orderBy(asc(setLogs.id));
+
+    // Map DB rows to domain types for the pure function
+    const prescriptions = prescriptionRows.map((p) => ({
+      id: p.id,
+      workoutTemplateId: p.workoutTemplateId,
+      exerciseName: p.exerciseName,
+      orderInWorkout: p.orderInWorkout,
+      sets: p.sets,
+      repMin: p.repMin,
+      repMax: p.repMax,
+      weightKg: p.weightKg ?? null,
+      rpeTarget: p.rpeTarget,
+      restSeconds: p.restSeconds,
+      notes: p.notes,
+    }));
+
+    const mappedLogs = logRows.map((log) => ({
+      id: log.id,
+      sessionId: log.sessionId,
+      exercisePrescriptionId: log.exercisePrescriptionId,
+      exerciseName: log.exerciseName,
+      setNumber: log.setNumber,
+      prescribedReps: log.prescribedReps,
+      actualReps: log.actualReps,
+      prescribedWeightKg: log.prescribedWeightKg
+        ? Number(log.prescribedWeightKg)
+        : null,
+      actualWeightKg: log.actualWeightKg ? Number(log.actualWeightKg) : null,
+      rpeActual: log.rpeActual ? Number(log.rpeActual) : null,
+      painReported: log.painReported,
+      painNotes: log.painNotes,
+      skipped: log.skipped,
+      skipReason: log.skipReason,
+    }));
+
+    const summary = computeSessionSummary({
+      sessionId,
+      sessionStatus: session.status,
+      startedAt: session.startedAt.toISOString(),
+      completedAt: session.completedAt?.toISOString() ?? null,
+      prescriptions,
+      setLogs: mappedLogs,
+    });
+
+    return reply.status(200).send(summary);
   });
 };

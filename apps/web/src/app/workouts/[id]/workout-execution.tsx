@@ -46,6 +46,48 @@ interface SessionData {
   setLogs: SetLogEntry[];
 }
 
+interface SetPerformance {
+  setNumber: number;
+  prescribedReps: number;
+  actualReps: number;
+  prescribedWeightKg: number | null;
+  actualWeightKg: number | null;
+  rpeActual: number | null;
+  painReported: boolean;
+  skipped: boolean;
+  logged: boolean;
+}
+
+interface ExercisePerformanceSummary {
+  exercisePrescriptionId: string;
+  exerciseName: string;
+  prescribedSets: number;
+  loggedSets: number;
+  prescribedRepsPerSet: number;
+  completedReps: number;
+  totalPrescribedReps: number;
+  completionRate: number;
+  status: "completed" | "partial" | "not_started";
+  painReported: boolean;
+  setBreakdown: SetPerformance[];
+}
+
+interface SessionPerformanceSummary {
+  sessionId: string;
+  sessionStatus: string;
+  startedAt: string;
+  completedAt: string | null;
+  totalExercises: number;
+  completedExercises: number;
+  totalPrescribedSets: number;
+  totalLoggedSets: number;
+  totalPrescribedReps: number;
+  totalCompletedReps: number;
+  completionRate: number;
+  painReported: boolean;
+  exercises: ExercisePerformanceSummary[];
+}
+
 type WorkoutState = "not_started" | "in_progress" | "completed";
 
 export function WorkoutExecution({
@@ -373,6 +415,21 @@ function CompletedView({
   exercises: Exercise[];
   setLogs: SetLogEntry[];
 }) {
+  const [summary, setSummary] = useState<SessionPerformanceSummary | null>(
+    null,
+  );
+  const [summaryError, setSummaryError] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/workout-sessions/${session.id}/summary`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch summary");
+        return res.json();
+      })
+      .then(setSummary)
+      .catch(() => setSummaryError(true));
+  }, [session.id]);
+
   const startTime = new Date(session.startedAt);
   const endTime = session.completedAt ? new Date(session.completedAt) : null;
   const durationMin = endTime
@@ -388,6 +445,134 @@ function CompletedView({
       </p>
       {session.notes && <p>Notes: {session.notes}</p>}
 
+      {summary && <PerformanceSummaryPanel summary={summary} />}
+
+      {summaryError && <RawCompletedView exercises={exercises} setLogs={setLogs} />}
+
+      {!summary && !summaryError && (
+        <p>Loading summary...</p>
+      )}
+    </div>
+  );
+}
+
+function PerformanceSummaryPanel({
+  summary,
+}: {
+  summary: SessionPerformanceSummary;
+}) {
+  const pct = (rate: number) => `${Math.round(rate * 100)}%`;
+
+  return (
+    <div style={{ marginTop: "1rem" }}>
+      <h2>Performance Summary</h2>
+
+      <div style={{ marginBottom: "1rem" }}>
+        <p>
+          <strong>Exercises:</strong> {summary.completedExercises}/
+          {summary.totalExercises} completed
+        </p>
+        <p>
+          <strong>Sets:</strong> {summary.totalLoggedSets}/
+          {summary.totalPrescribedSets} logged
+        </p>
+        <p>
+          <strong>Reps:</strong> {summary.totalCompletedReps}/
+          {summary.totalPrescribedReps} completed ({pct(summary.completionRate)}
+          )
+        </p>
+        {summary.painReported && (
+          <p>
+            <strong>Pain reported</strong> during this session
+          </p>
+        )}
+      </div>
+
+      {summary.exercises.map((ex) => (
+        <div
+          key={ex.exercisePrescriptionId}
+          style={{ marginBottom: "1.5rem" }}
+        >
+          <h3>
+            {ex.exerciseName}{" "}
+            <span
+              style={{
+                fontSize: "0.85em",
+                color:
+                  ex.status === "completed"
+                    ? "green"
+                    : ex.status === "partial"
+                      ? "orange"
+                      : "#888",
+              }}
+            >
+              [{ex.status}]
+            </span>
+          </h3>
+          <p>
+            Sets: {ex.loggedSets}/{ex.prescribedSets} — Reps:{" "}
+            {ex.completedReps}/{ex.totalPrescribedReps} (
+            {pct(ex.completionRate)})
+            {ex.painReported && " — Pain reported"}
+          </p>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Set</th>
+                <th>Prescribed</th>
+                <th>Actual</th>
+                <th>Weight</th>
+                <th>RPE</th>
+                <th>Pain</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ex.setBreakdown.map((s) => (
+                <tr
+                  key={s.setNumber}
+                  style={{ color: s.logged ? "inherit" : "#aaa" }}
+                >
+                  <td>{s.setNumber}</td>
+                  <td>{s.prescribedReps}</td>
+                  <td>{s.logged ? s.actualReps : "—"}</td>
+                  <td>
+                    {s.logged && s.actualWeightKg != null
+                      ? `${s.actualWeightKg}kg`
+                      : "—"}
+                  </td>
+                  <td>{s.logged && s.rpeActual != null ? s.rpeActual : "—"}</td>
+                  <td>{s.painReported ? "Yes" : "—"}</td>
+                  <td>
+                    {s.skipped
+                      ? "Skipped"
+                      : s.logged
+                        ? "Logged"
+                        : "Not logged"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RawCompletedView({
+  exercises,
+  setLogs,
+}: {
+  exercises: Exercise[];
+  setLogs: SetLogEntry[];
+}) {
+  return (
+    <div>
+      <p style={{ color: "#888" }}>
+        <em>Could not load performance summary.</em>
+      </p>
       {exercises.map((ex) => {
         const logs = setLogs.filter(
           (log) => log.exercisePrescriptionId === ex.id,

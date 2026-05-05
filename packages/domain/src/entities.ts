@@ -131,6 +131,52 @@ export interface SetLog {
   skipReason: string | null;
 }
 
+// --- Session performance summary ---
+
+export type ExerciseCompletionStatus = "completed" | "partial" | "not_started";
+
+export interface SetPerformance {
+  setNumber: number;
+  prescribedReps: number;
+  actualReps: number;
+  prescribedWeightKg: number | null;
+  actualWeightKg: number | null;
+  rpeActual: number | null;
+  painReported: boolean;
+  skipped: boolean;
+  logged: boolean;
+}
+
+export interface ExercisePerformanceSummary {
+  exercisePrescriptionId: string;
+  exerciseName: string;
+  prescribedSets: number;
+  loggedSets: number;
+  prescribedRepsPerSet: number;
+  completedReps: number;
+  totalPrescribedReps: number;
+  completionRate: number;
+  status: ExerciseCompletionStatus;
+  painReported: boolean;
+  setBreakdown: SetPerformance[];
+}
+
+export interface SessionPerformanceSummary {
+  sessionId: string;
+  sessionStatus: WorkoutSessionStatus;
+  startedAt: string;
+  completedAt: string | null;
+  totalExercises: number;
+  completedExercises: number;
+  totalPrescribedSets: number;
+  totalLoggedSets: number;
+  totalPrescribedReps: number;
+  totalCompletedReps: number;
+  completionRate: number;
+  painReported: boolean;
+  exercises: ExercisePerformanceSummary[];
+}
+
 export interface AttendanceEvent {
   id: string;
   scheduledWorkoutId: string;
