@@ -12,7 +12,7 @@ import {
   pgEnum,
 } from "drizzle-orm/pg-core";
 import { userProfiles } from "./users.js";
-import { workoutTemplates, planVersions } from "./plans.js";
+import { workoutTemplates, planVersions, exercisePrescriptions } from "./plans.js";
 
 export const scheduledWorkoutStatusEnum = pgEnum("scheduled_workout_status", [
   "upcoming",
@@ -72,6 +72,9 @@ export const setLogs = pgTable("set_logs", {
   sessionId: uuid("session_id")
     .notNull()
     .references(() => workoutSessions.id),
+  exercisePrescriptionId: uuid("exercise_prescription_id").references(
+    () => exercisePrescriptions.id,
+  ),
   exerciseName: varchar("exercise_name", { length: 255 }).notNull(),
   setNumber: integer("set_number").notNull(),
   prescribedReps: integer("prescribed_reps").notNull(),
@@ -95,7 +98,7 @@ export const attendanceEvents = pgTable("attendance_events", {
     .references(() => scheduledWorkouts.id),
   sessionId: uuid("session_id").references(() => workoutSessions.id),
   eventType: attendanceEventTypeEnum("event_type").notNull(),
-  scheduledTime: timestamp("scheduled_time").notNull(),
+  scheduledTime: timestamp("scheduled_time"),
   actualTime: timestamp("actual_time"),
   varianceMinutes: integer("variance_minutes"),
   recordedAt: timestamp("recorded_at").defaultNow().notNull(),
