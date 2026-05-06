@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import cors from "@fastify/cors";
 import { healthRoutes } from "./routes/health.js";
 import { profileRoutes } from "./routes/profile.js";
 import { consultationRoutes } from "./routes/consultations.js";
@@ -14,6 +15,17 @@ import { profileProgressionPatternRoutes } from "./routes/profile-progression-pa
 
 export function buildApp() {
   const app = Fastify({ logger: false });
+
+  app.register(cors, {
+    origin: [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      "http://10.0.0.222:3000",
+      "http://erebus.tail172bcd.ts.net:3000",
+    ],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type"],
+  });
 
   app.register(healthRoutes);
   app.register(profileRoutes, { prefix: "/api/profiles" });

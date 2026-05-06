@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fastify/cors": "^11.2.0",
     "@setwise/db": "workspace:*",
     "@setwise/domain": "workspace:*",
     "@setwise/training-core": "workspace:*",

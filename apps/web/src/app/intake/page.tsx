@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 
-const API = "http://localhost:4000";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 const style = { display: "block", width: "100%" } as const;
 const containerStyle = {

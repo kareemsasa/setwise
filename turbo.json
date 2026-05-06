@@ -8,7 +8,7 @@
     "dev": {
       "cache": false,
       "persistent": true,
-      "passThroughEnv": ["DATABASE_URL"]
+      "passThroughEnv": ["DATABASE_URL", "NEXT_PUBLIC_API_URL", "PORT"]
     },
     "test": {
       "dependsOn": ["^build"],
